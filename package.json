@@ -1,6 +1,6 @@
 {
   "name": "dsh-rtk-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DeepSeek Harness 的 rtk 命令改写桥：把 pwsh/bash 命令经 rtk rewrite 改写后执行，让压缩输出直接进入上下文。",
   "keywords": [
     "dsh",

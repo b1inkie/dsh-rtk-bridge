@@ -26,12 +26,21 @@ git status  →  rtk git status  →  * master
 
 rtk 安装：<https://www.rtk-ai.app/docs/getting-started/installation/>
 
-Windows 把 `rtk.exe` 放进 PATH 即可。插件查找顺序：
+**不想手动装**：装完插件后在 DSH 里执行：
+
+```text
+/rtk install
+```
+
+它会从官方 GitHub Release 下载当前平台的 rtk，校验 `checksums.txt` 里的 SHA256，解压到 `~/.dsh/rtk-bridge/bin`，不需要自己找二进制或改 PATH。
+
+插件查找顺序：
 
 1. `rtkPath` 配置
 2. `DSH_RTK_BIN` / `RTK_BIN`
-3. PATH 上的 `rtk` / `rtk.exe`
-4. `~/.local/bin`、`~/.cargo/bin`、`%LOCALAPPDATA%\Programs\rtk`、WinGet Links
+3. `/rtk install` 安装的 `~/.dsh/rtk-bridge/bin/rtk[.exe]`
+4. PATH 上的 `rtk` / `rtk.exe`
+5. `~/.local/bin`、`~/.cargo/bin`、`%LOCALAPPDATA%\Programs\rtk`、WinGet Links
 
 ## 安装
 
@@ -76,6 +85,8 @@ dsh --profile web --patch D:/path/to/dev.patch.yml
     intercept: auto          # auto | patch | dispatch
     tools: [pwsh, bash]
     rtkPath: ''
+    installVersion: latest   # 或固定 X.Y.Z
+    downloadBase: https://github.com/rtk-ai/rtk/releases
     timeoutMs: 2000
     excludedSubcommands: []
     rewriteWhenConfined: false
@@ -89,6 +100,8 @@ dsh --profile web --patch D:/path/to/dev.patch.yml
 | `intercept` | `auto` | `auto` 包装 `execute`，失败时切 dispatch；`patch` 只包装；`dispatch` 只走 `tools/execute` 短路 |
 | `tools` | `[pwsh, bash]` | 要拦截的 shell 工具 |
 | `rtkPath` | `''` | 显式指定 rtk 可执行文件 |
+| `installVersion` | `latest` | `/rtk install` 下载的版本，可填 `X.Y.Z` |
+| `downloadBase` | 官方 releases | 下载源，GitHub 不可达时可换镜像 |
 | `timeoutMs` | `2000` | `rtk rewrite` 超时 |
 | `excludedSubcommands` | `[]` | 不改写的 rtk 子命令 |
 | `rewriteWhenConfined` | `false` | Windows 受限沙箱里是否强制尝试 |
@@ -100,6 +113,7 @@ dsh --profile web --patch D:/path/to/dev.patch.yml
 |---|---|
 | `/rtk` / `/rtk status` | rtk 路径、版本、工具状态、计数器、沙箱状态 |
 | `/rtk verify` | 重新探测 rtk |
+| `/rtk install [version]` | 下载并安装 rtk（SHA256 校验） |
 | `/rtk rewrite git status` | 预览改写结果 |
 | `/rtk gain` | rtk 全局节省统计 |
 | `/rtk on` / `/rtk off` | 运行时开关 |
@@ -120,6 +134,7 @@ rtk rewrite "git status"
 - **工具卡片显示原始命令**：DSH 不修改模型参数，所以记录里是 `git status`，实际执行的是 `rtk git status`。
 - **只处理 shell 工具**：不处理 `read` / `grep` / `fs` 等原生工具。
 - **不做额外输出压缩**：压缩由 rtk 完成，DSH 负责超长截断。
+- **`/rtk install` 需要访问 GitHub**：会从官方 `rtk-ai/rtk` Release 下载并校验 SHA256；GitHub 不可达时可配置 `downloadBase` 镜像，或手动安装 rtk。
 
 ## 开发
 

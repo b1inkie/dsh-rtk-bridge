@@ -10,6 +10,7 @@ import {
   isAlreadyRtk,
   isRtkNoiseLine,
   isRtkSpawnFailure,
+  managedRtkPath,
   normalizeConfig,
   parseVersion,
   rewriteAllowed,
@@ -17,6 +18,7 @@ import {
   shouldAttempt,
 } from '../lib/core.js'
 import { candidateExecutables, createRtkEngine } from '../lib/engine.js'
+import { parseChecksums, releaseAsset } from '../lib/install.js'
 import { createDispatchHandler, createExecuteWrapper, createSuggestDenier } from '../lib/wrap.js'
 import { VERSION } from '../lib/version.js'
 
@@ -119,7 +121,26 @@ test('normalizeConfig tolerates junk and clamps values', () => {
   assert.equal(config.debug, false)
   assert.equal(normalizeConfig({ intercept: 'dispatch' }).intercept, 'dispatch')
   assert.equal(normalizeConfig({ intercept: 'nope' }).intercept, 'auto')
+  assert.equal(normalizeConfig({ installVersion: 'v1.2.3' }).installVersion, '1.2.3')
+  assert.equal(normalizeConfig({ downloadBase: 'http://mirror' }).downloadBase, DEFAULT_CONFIG.downloadBase)
   assert.deepEqual(normalizeConfig(undefined), DEFAULT_CONFIG)
+})
+
+test('managedRtkPath / releaseAsset / parseChecksums', () => {
+  assert.equal(managedRtkPath({ platform: 'win32', dshHome: 'C:/Users/me/.dsh' }).replaceAll('\\', '/'), 'C:/Users/me/.dsh/rtk-bridge/bin/rtk.exe')
+  assert.equal(managedRtkPath({ platform: 'linux', dshHome: '/home/me/.dsh' }).replaceAll('\\', '/'), '/home/me/.dsh/rtk-bridge/bin/rtk')
+  assert.deepEqual(releaseAsset('win32', 'x64'), { asset: 'rtk-x86_64-pc-windows-msvc.zip', kind: 'zip' })
+  assert.deepEqual(releaseAsset('darwin', 'arm64'), { asset: 'rtk-aarch64-apple-darwin.tar.gz', kind: 'tar.gz' })
+  assert.throws(() => releaseAsset('win32', 'arm64'), /prebuilt binary/)
+
+  const checksums = parseChecksums([
+    `${'a'.repeat(64)}  rtk-x86_64-pc-windows-msvc.zip`,
+    `${'B'.repeat(64)} *rtk-aarch64-apple-darwin.tar.gz`,
+    'not a checksum line',
+  ].join('\n'))
+  assert.equal(checksums.get('rtk-x86_64-pc-windows-msvc.zip'), 'a'.repeat(64))
+  assert.equal(checksums.get('rtk-aarch64-apple-darwin.tar.gz'), 'b'.repeat(64))
+  assert.equal(checksums.size, 2)
 })
 
 test('candidateExecutables prefers the configured path and skips missing ones', () => {
@@ -135,8 +156,19 @@ test('candidateExecutables prefers the configured path and skips missing ones', 
   assert.ok(candidates.includes('rtk'))
 })
 
-test('candidateExecutables honors RTK_BIN and DSH_RTK_BIN', () => {
+test('candidateExecutables includes the /rtk install target before PATH', () => {
   const candidates = candidateExecutables({
+    config: normalizeConfig({}),
+    platform: 'win32',
+    env: { USERPROFILE: 'C:/Users/me', DSH_HOME: 'C:/Users/me/.dsh' },
+    exists: () => true,
+  })
+  const managed = candidates.findIndex((candidate) => candidate.replaceAll('\\', '/') === 'C:/Users/me/.dsh/rtk-bridge/bin/rtk.exe')
+  assert.ok(managed >= 0)
+  assert.ok(managed < candidates.indexOf('rtk'))
+})
+
+test('candidateExecutables honors RTK_BIN and DSH_RTK_BIN', () => {  const candidates = candidateExecutables({
     config: normalizeConfig({}),
     platform: 'win32',
     env: { RTK_BIN: 'C:/custom/rtk.exe', USERPROFILE: 'C:/Users/me' },
