@@ -1,0 +1,13 @@
+# dsh-rtk-bridge bundle patch.
+#
+# Mounted by adding this package to a profile's `dsh.profile.bundles` list.
+# `name` must match the installed package name exactly.
+- insert:
+    - id: rtk-bridge
+      name: dsh-rtk-bridge
+      # Optional defaults (uncomment to change):
+      # config:
+      #   mode: rewrite        # rewrite | suggest
+      #   rtkPath: ''          # explicit rtk executable; empty = auto-discover
+      #   tools: [pwsh, bash]
+      #   excludedSubcommands: []
